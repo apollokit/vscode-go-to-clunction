@@ -76,6 +76,19 @@ export class GoToClunctionProvider {
         return result || [];
     }
 
+    private keep_symbol(symbol: DocumentSymbol, document: TextDocument): boolean {
+        let languageId = window.activeTextEditor?.document.languageId;
+        if (languageId == "python") {
+            let lineNo = symbol.range.start.line;
+            let text = document.lineAt(lineNo).text;
+            // discard symbols from import statements, they're not useful to see in the menu
+            if (text.startsWith("from ") || text.startsWith("import ")) {
+                return false
+            }
+        }
+        return true;
+    }
+
     private async showQuickView() {
         const activeTextEditor = window.activeTextEditor;
         if (!activeTextEditor) { return; }
@@ -89,12 +102,15 @@ export class GoToClunctionProvider {
                 const newSymbols: SymbolEntry[] = [];
 
                 const addSymbols = (symbols: DocumentSymbol[], parentSymbol?: DocumentSymbol) => {
-                    for (const sym of symbols.filter(symbol =>
+                    let symbols_filt = symbols.filter(symbol =>
                         symbol.kind === SymbolKind.Method ||
                         symbol.kind === SymbolKind.Function ||
                         symbol.kind === SymbolKind.Class ||
-                        symbol.kind === SymbolKind.Constructor)) {
-                        newSymbols.push(SymbolEntry.fromDocumentSymbol(sym, parentSymbol));
+                        symbol.kind === SymbolKind.Constructor); 
+                    for (const sym of symbols_filt) {
+                        if (this.keep_symbol(sym, activeTextEditor.document)) {
+                            newSymbols.push(SymbolEntry.fromDocumentSymbol(sym, parentSymbol));
+                        }
                     }
                 };
 

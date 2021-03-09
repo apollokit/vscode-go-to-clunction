@@ -18,3 +18,7 @@ Alternatively, you can download the extension from the [marketplace](https://mar
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Todo
+
+- figure out how to start at a certain place in the quick pick menu. It's annoying to start at the beginning of it every time

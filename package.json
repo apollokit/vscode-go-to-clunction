@@ -2,7 +2,7 @@
   "name": "go-to-clunction",
   "displayName": "Go To Clunction",
   "description": "Like goto symbol, but only displays class and function/method symbols declared in the active document.",
-  "version": "0.2.1",
+  "version": "0.0.2",
   "publisher": "KitKennedy",
   "homepage": "https://github.com/apollokit/vscode-go-to-clunction#readme",
   "repository": {
