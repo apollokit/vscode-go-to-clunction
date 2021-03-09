@@ -18,7 +18,17 @@ class SymbolEntry implements QuickPickItem {
     private constructor() { }
 
     public static fromDocumentSymbol(symbol: DocumentSymbol, parentSymbol?: DocumentSymbol) {
-        const markdownString = new MarkdownString('$(symbol-method) ' + symbol.name);
+        // the $(...) is a theme icon, see
+        // https://vshaxe.github.io/vscode-extern/vscode/MarkdownString.html#ThemeIcon
+        // https://code.visualstudio.com/api/references/icons-in-labels#animation
+        let markdownString;
+        switch (symbol.kind) {
+            case SymbolKind.Class:
+                markdownString = new MarkdownString('$(symbol-class) ' + symbol.name);
+                break;
+            default:
+                markdownString = new MarkdownString('$(symbol-method)    ' + symbol.name);
+        }
 
         const entry = new SymbolEntry();
         entry.label = markdownString.value;
@@ -42,12 +52,12 @@ class SymbolEntry implements QuickPickItem {
     public range?: Range;
 }
 
-export class GoToMethodProvider {
+export class GoToClunctionProvider {
     private decorationType!: TextEditorDecorationType;
 
     public initialise(context: ExtensionContext) {
         context.subscriptions.push(
-            commands.registerCommand('workbench.action.gotoMethod', () => this.showQuickView())
+            commands.registerCommand('workbench.action.gotoClunction', () => this.showQuickView())
         );
 
         this.decorationType = window.createTextEditorDecorationType({
@@ -82,6 +92,7 @@ export class GoToMethodProvider {
                     for (const sym of symbols.filter(symbol =>
                         symbol.kind === SymbolKind.Method ||
                         symbol.kind === SymbolKind.Function ||
+                        symbol.kind === SymbolKind.Class ||
                         symbol.kind === SymbolKind.Constructor)) {
                         newSymbols.push(SymbolEntry.fromDocumentSymbol(sym, parentSymbol));
                     }
@@ -94,6 +105,13 @@ export class GoToMethodProvider {
                 for (const sym of syms) {
                     addSymbols(sym.children, sym);
                 }
+                
+                // sort symbols by order of appearance in the document
+                newSymbols.sort(function (a, b) { 
+                    // these shouldn't be undefined, but have to make the compiler happy
+                    if (a.range === undefined || b.range === undefined) {return -1;}
+                    return a.range.start.compareTo(b.range.start);
+                });
 
                 return newSymbols;
             });
@@ -102,14 +120,16 @@ export class GoToMethodProvider {
             ? activeTextEditor.visibleRanges[0]
             : new Range(0, 0, 0, 0);
 
-        const pickedItem = await window.showQuickPick(symbolEntries, {
+        const pickedItem = await window.showQuickPick(
+            symbolEntries, {
             onDidSelectItem: (selectedItem: SymbolEntry) => {
                 if (!selectedItem.range) { return; }
 
                 // Preview the selected item by highlighting the scope and scrolling to it
                 activeTextEditor.setDecorations(this.decorationType, [selectedItem.range]);
                 activeTextEditor.revealRange(selectedItem.range, TextEditorRevealType.Default);
-            }
+            },
+            placeHolder: "class or function",
         });
 
         // Clear decorations

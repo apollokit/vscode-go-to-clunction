@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 
-import { GoToMethodProvider } from './goToMethod';
+import { GoToClunctionProvider } from './goToClunction';
 
 export function activate(context: vscode.ExtensionContext) {
-    const goToMethodProvider = new GoToMethodProvider();
-    goToMethodProvider.initialise(context);
+    const goToClunctionProvider = new GoToClunctionProvider();
+    goToClunctionProvider.initialise(context);
 }

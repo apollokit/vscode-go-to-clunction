@@ -1,16 +1,16 @@
 {
-  "name": "go-to-method",
-  "displayName": "Go To Method",
-  "description": "Adds the ability to go to only method symbols declared in the active document",
-  "version": "0.2.0",
-  "publisher": "trixnz",
-  "homepage": "https://github.com/trixnz/vscode-go-to-method#readme",
+  "name": "go-to-clunction",
+  "displayName": "Go To Clunction",
+  "description": "Like goto symbol, but only displays class and function/method symbols declared in the active document.",
+  "version": "0.2.1",
+  "publisher": "KitKennedy",
+  "homepage": "https://github.com/apollokit/vscode-go-to-clunction#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/trixnz/vscode-go-to-method"
+    "url": "https://github.com/apollokit/vscode-go-to-clunction"
   },
   "bugs": {
-    "url": "https://github.com/trixnz/vscode-go-to-method/issues"
+    "url": "https://github.com/apollokit/vscode-go-to-clunction/issues"
   },
   "license": "MIT",
   "icon": "images/icon.png",
@@ -25,14 +25,14 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:workbench.action.gotoMethod"
+    "onCommand:workbench.action.gotoClunction"
   ],
-  "main": "./out/src/extension",
+  "main": "./out/src/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "workbench.action.gotoMethod",
-        "title": "Go to Method in File..."
+        "command": "workbench.action.gotoClunction",
+        "title": "Go to Clunction in File..."
       }
     ]
   },
