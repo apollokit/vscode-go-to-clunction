@@ -1,4 +1,4 @@
-# Go To Method
+# Go To Class/Function ("Clunction")
 The standard `Go to Symbol in File...` feature of [VS Code](https://github.com/Microsoft/vscode) can be noisy when you're only interested in functions. This extension adds a `Go to Clunction in File...` feature that allows you to focus only on the classes and functions declared in the file.
 
 ![Usage](images/clunction_junction_whats_ur_function.gif)
