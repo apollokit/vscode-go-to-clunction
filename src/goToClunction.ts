@@ -1,5 +1,7 @@
 import {
     TextDocument,
+    TextEditor,
+    TextLine,
     ExtensionContext,
     QuickPickItem,
     commands,
@@ -31,6 +33,22 @@ function keep_symbol(symbol: DocumentSymbol, document: TextDocument): boolean {
     }
     return true;
 }
+
+// find the closest symbol immediately preceding lineNoQuery. This is taken to be the symbol we are currently "in".
+function findClosestSymbol(lineNoQuery: number, symbols: SymbolEntry[]): SymbolEntry {
+    const sorted = [...symbols].sort();
+    let closest = symbols[0];
+    for (const sym of sorted) {
+        if (!sym.range) {continue;}
+        let symLineNo = sym.range.start.line;
+        if (symLineNo > lineNoQuery) {
+            return closest;
+        }
+        closest = sym;
+    }
+    return closest;
+}
+
 class SymbolEntry implements QuickPickItem {
     private constructor() { }
 
@@ -44,7 +62,7 @@ class SymbolEntry implements QuickPickItem {
                 markdownString = new MarkdownString('$(symbol-class) ' + symbol.name);
                 break;
             default:
-                markdownString = new MarkdownString('$(symbol-method)    ' + symbol.name);
+                markdownString = new MarkdownString('$(symbol-method)      ' + symbol.name);
         }
 
         const entry = new SymbolEntry();
@@ -93,9 +111,57 @@ export class GoToClunctionProvider {
         return result || [];
     }
 
+    // show a quick pick menu with symbol entries
+    // inspiration from https://github.com/microsoft/vscode-extension-samples/blob/463571f99a815d66e08264b516203fe6a1349d1a/quickinput-sample/src/multiStepInput.ts#L204
+    private async showMenu(entries: SymbolEntry[], 
+            activeTextEditor: TextEditor, currLine: TextLine): Promise<SymbolEntry> {
+        
+        // find the closest symbol to the current cursor line in the document
+        const currLineNo = currLine.lineNumber;
+        const closestSymbol = findClosestSymbol(currLineNo, entries);
+        
+        return await new Promise((resolve, reject) => {
+            const input = window.createQuickPick<SymbolEntry>();
+            // input.title = 'title';
+            // steps is only used when multiple menus are presented in subsequent steps
+            // input.step = 1;
+            // input.totalSteps = 1;
+            input.placeholder = "go to a class or function";
+            input.items = entries;
+            // set the initial choice in the menu as the closest symbol
+            if (closestSymbol) {
+                input.activeItems = [closestSymbol];
+            }
+            // when the user navigates to a new choice in the menu
+            input.onDidChangeActive(items => {
+                // there will only be one active item
+                let activeItem = items[0];
+                // if (!activeItem.range) { return; }
+                // not really sure this is the right way to handle it, might need to revisit this
+                if (!activeItem.range) { reject(new Error("Whoops!")); return;}
+
+                // Preview the selected item by highlighting the scope and scrolling to it
+                activeTextEditor.setDecorations(this.decorationType, [activeItem.range]);
+                activeTextEditor.revealRange(activeItem.range, TextEditorRevealType.Default);
+            });
+            // when the user hits enter
+            input.onDidAccept(() => {
+                let selectedItem = input.selectedItems[0];
+                input.dispose();
+                resolve(selectedItem);
+            });
+            input.show();
+        })
+    }
+
     private async showQuickView() {
         const activeTextEditor = window.activeTextEditor;
         if (!activeTextEditor) { return; }
+        
+        // find current line in the document, so that we can activate the menu at the closest symbol
+        // todo: what happens if there are multiple selection regions?
+        let curPos = activeTextEditor.selection.active;
+        const currLine = activeTextEditor.document.lineAt(curPos);
 
         const symbolEntries = this.getSymbols(activeTextEditor.document)
             .then(syms => {
@@ -140,17 +206,8 @@ export class GoToClunctionProvider {
             ? activeTextEditor.visibleRanges[0]
             : new Range(0, 0, 0, 0);
 
-        const pickedItem = await window.showQuickPick(
-            symbolEntries, {
-            onDidSelectItem: (selectedItem: SymbolEntry) => {
-                if (!selectedItem.range) { return; }
-
-                // Preview the selected item by highlighting the scope and scrolling to it
-                activeTextEditor.setDecorations(this.decorationType, [selectedItem.range]);
-                activeTextEditor.revealRange(selectedItem.range, TextEditorRevealType.Default);
-            },
-            placeHolder: "class or function",
-        });
+        
+        const pickedItem = await symbolEntries.then(entries => this.showMenu(entries, activeTextEditor, currLine));
 
         // Clear decorations
         activeTextEditor.setDecorations(this.decorationType, []);
