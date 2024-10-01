@@ -43,6 +43,11 @@
           "type": "boolean",
           "default": false,
           "description": "Show constant values in the quick view menu"
+        },
+        "gotoClunction.showMarkComments": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show MARK comments in the quick view menu"
         }
       }
     }

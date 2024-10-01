@@ -23,6 +23,8 @@ const functionRegexCpp = /\b(\w+)::(~?\w+)\s*\([^)]*\)\s*{/g;
 // const constantRegex = /\bconst\s+[\w\s\*&]+(\w+)\s*=\s*[^;]+;/g;  // Matches const variable definitions
 const macroRegex = /#define\s+(\w+)\s+[^;]+/g;  // Matches #define macros
 
+const markCommentRegex = /(.*\bMARK\b:?\s?.*)\n/g;  // Matches class or struct declarations
+
 /* Returns true if a symbol should be kept in the symbol list, or false if it should be discarded
 
 This is the place to do any kind of ad hoc, document/language specific filtering of symbols
@@ -56,7 +58,11 @@ function findClosestSymbol(lineNoQuery: number, symbols: SymbolEntry[]): SymbolE
     return closest;
 }
 
-// Function to parse C++ files manually
+/*  Function to parse C++ files manually
+
+    This function uses regular expressions to parse the document text and extract symbols.
+    It is used for C++ files because the built-in document symbol provider is very slow for C++ files.
+*/
 async function parseCppSymbols(document: TextDocument, documentType: string): Promise<DocumentSymbol[]> {
     const text = document.getText();  // Get the entire document text
 
@@ -140,6 +146,37 @@ async function parseCppSymbols(document: TextDocument, documentType: string): Pr
     return symbols;
 }
 
+/*  Function to parse "MARK" comments
+
+    This function uses regular expressions to parse the document text and extract symbols.
+    It is used to extract "MARK" comments from the document text.
+*/
+async function parseMarkComments(document: TextDocument): Promise<DocumentSymbol[]> {
+    const text = document.getText();  // Get the entire document text
+
+    const symbols: DocumentSymbol[] = [];
+
+    // Parse classes and structs
+    let match;
+    while ((match = markCommentRegex.exec(text)) !== null) {
+        const commentText = match[1];
+        const startPos = document.positionAt(match.index);
+        const endPos = document.positionAt(match.index + match[0].length);
+        const range = new Range(startPos, endPos);
+
+        const classSymbol = new DocumentSymbol(
+            commentText,
+            '',
+            SymbolKind.String,
+            range,
+            range
+        );
+        symbols.push(classSymbol);
+    }
+
+    return symbols;
+}
+
 class SymbolEntry implements QuickPickItem {
     private constructor() { }
 
@@ -161,6 +198,10 @@ class SymbolEntry implements QuickPickItem {
                 break;
             case SymbolKind.Constant:
                 icon = '$(symbol-constant)';
+                break;
+            // note: hijacking the SymbolKind.String to represent MARK comments
+            case SymbolKind.String:
+                icon = '';
                 break;
             default:
                 icon = '$(symbol-method)';
@@ -210,18 +251,25 @@ export class GoToClunctionProvider {
         const fileName = document.fileName;
         const extension = fileName.split('.').pop()?.toLowerCase();
 
+        let symbols: DocumentSymbol[] = [];
+
         // special handling for C++ files because `vscode.executeDocumentSymbolProvider` is ruuuul slow
         if (extension === 'cpp' || extension === 'h') {
             // Use manual string parsing for C++ files
-            return await parseCppSymbols(document, extension);
+            symbols.push(...await parseCppSymbols(document, extension));
+        }
+        else if (extension === 'py') {
+            const result = await commands.executeCommand<DocumentSymbol[]>(
+                'vscode.executeDocumentSymbolProvider',
+                document.uri
+            );
+            if (result) {symbols.push(...result);}
         }
 
-        const result = await commands.executeCommand<DocumentSymbol[]>(
-            'vscode.executeDocumentSymbolProvider',
-            document.uri
-        );
+        // parse "MARK" comments in the document
+        symbols.push(...await parseMarkComments(document));
 
-        return result || [];
+        return symbols;
     }
 
     // show a quick pick menu with symbol entries
@@ -279,6 +327,7 @@ export class GoToClunctionProvider {
         // property "gotoClunction.showConstants"
         const config = workspace.getConfiguration('gotoClunction');
         const showConstants = config.get<boolean>('showConstants');
+        const showMarkComments = config.get<boolean>('showMarkComments');
 
         const symbolEntries = this.getSymbols(activeTextEditor.document)
             .then(syms => {
@@ -297,6 +346,10 @@ export class GoToClunctionProvider {
                 ]);
                 if (showConstants) {
                     allowedSymbolKinds.add(SymbolKind.Constant);
+                }
+                // note: hijacking the SymbolKind.String to represent MARK comments
+                if (showMarkComments) {
+                    allowedSymbolKinds.add(SymbolKind.String);
                 }
 
                 const addSymbols = (symbols: DocumentSymbol[], parentSymbol?: DocumentSymbol) => {
