@@ -34,7 +34,18 @@
         "command": "workbench.action.gotoClunction",
         "title": "Go to Clunction in File..."
       }
-    ]
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Goto Clunction Configuration",
+      "properties": {
+        "gotoClunction.showConstants": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show constant values in the quick view menu"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

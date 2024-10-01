@@ -13,7 +13,8 @@ import {
     Range,
     Selection,
     DocumentSymbol,
-    MarkdownString
+    MarkdownString,
+    workspace
 } from 'vscode';
 
 /* Returns true if a symbol should be kept in the symbol list, or false if it should be discarded
@@ -176,6 +177,10 @@ export class GoToClunctionProvider {
         let curPos = activeTextEditor.selection.active;
         const currLine = activeTextEditor.document.lineAt(curPos);
 
+        // property "gotoClunction.showConstants"
+        const config = workspace.getConfiguration('gotoClunction');
+        const showConstants = config.get<boolean>('showConstants');
+
         const symbolEntries = this.getSymbols(activeTextEditor.document)
             .then(syms => {
                 if (syms.length === 0) {
@@ -184,13 +189,19 @@ export class GoToClunctionProvider {
 
                 const newSymbols: SymbolEntry[] = [];
 
+                // Create a set of allowed symbol kinds
+                const allowedSymbolKinds = new Set<SymbolKind>([
+                    SymbolKind.Method,
+                    SymbolKind.Function,
+                    SymbolKind.Class,
+                    SymbolKind.Constructor
+                ]);
+                if (showConstants) {
+                    allowedSymbolKinds.add(SymbolKind.Constant);
+                }
+
                 const addSymbols = (symbols: DocumentSymbol[], parentSymbol?: DocumentSymbol) => {
-                    let symbols_filt = symbols.filter(symbol =>
-                        symbol.kind === SymbolKind.Method ||
-                        symbol.kind === SymbolKind.Function ||
-                        symbol.kind === SymbolKind.Class ||
-                        symbol.kind === SymbolKind.Constant ||
-                        symbol.kind === SymbolKind.Constructor); 
+                    let symbols_filt = symbols.filter(symbol => allowedSymbolKinds.has(symbol.kind));
                     for (const sym of symbols_filt) {
                         if (keep_symbol(sym, activeTextEditor.document)) {
                             newSymbols.push(SymbolEntry.fromDocumentSymbol(sym, parentSymbol));
