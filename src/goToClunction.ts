@@ -57,13 +57,23 @@ class SymbolEntry implements QuickPickItem {
         // https://vshaxe.github.io/vscode-extern/vscode/MarkdownString.html#ThemeIcon
         // https://code.visualstudio.com/api/references/icons-in-labels#animation
         let markdownString;
+        
+        // if the symbol is nested, add some indentation
+        let preceed = "";
+        if (parentSymbol) {preceed = "     ";}
+
+        // choose the icon based on the symbol kind
+        let icon = '$(symbol-method)';
         switch (symbol.kind) {
             case SymbolKind.Class:
-                markdownString = new MarkdownString('$(symbol-class) ' + symbol.name);
+                icon = '$(symbol-class)';
                 break;
             default:
-                markdownString = new MarkdownString('$(symbol-method)      ' + symbol.name);
+                icon = '$(symbol-method)';
         }
+
+        // render the string to put in the menu
+        markdownString = new MarkdownString(preceed + icon + ' ' + symbol.name);
 
         const entry = new SymbolEntry();
         entry.label = markdownString.value;
