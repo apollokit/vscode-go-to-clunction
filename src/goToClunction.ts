@@ -17,6 +17,12 @@ import {
     workspace
 } from 'vscode';
 
+const classRegex = /\b(class|struct)\s+(\w+)/g;  // Matches class or struct declarations
+const functionRegexCppHeader = /(.*) (~?\w+)\(.*\);/g;  // Matches function signatures
+const functionRegexCpp = /\b(\w+)::(~?\w+)\s*\([^)]*\)\s*{/g;
+// const constantRegex = /\bconst\s+[\w\s\*&]+(\w+)\s*=\s*[^;]+;/g;  // Matches const variable definitions
+const macroRegex = /#define\s+(\w+)\s+[^;]+/g;  // Matches #define macros
+
 /* Returns true if a symbol should be kept in the symbol list, or false if it should be discarded
 
 This is the place to do any kind of ad hoc, document/language specific filtering of symbols
@@ -48,6 +54,90 @@ function findClosestSymbol(lineNoQuery: number, symbols: SymbolEntry[]): SymbolE
         closest = sym;
     }
     return closest;
+}
+
+// Function to parse C++ files manually
+async function parseCppSymbols(document: TextDocument, documentType: string): Promise<DocumentSymbol[]> {
+    const text = document.getText();  // Get the entire document text
+
+    const symbols: DocumentSymbol[] = [];
+
+    // Parse classes and structs
+    let match;
+    while ((match = classRegex.exec(text)) !== null) {
+        const className = match[2];
+        const startPos = document.positionAt(match.index);
+        const endPos = document.positionAt(match.index + match[0].length);
+        const range = new Range(startPos, endPos);
+
+        const classSymbol = new DocumentSymbol(
+            className,
+            '',
+            SymbolKind.Class,
+            range,
+            range
+        );
+        symbols.push(classSymbol);
+    }
+
+    // Parse functions
+    let functionRegexOption = functionRegexCpp;
+    if (documentType === 'h') {
+        functionRegexOption = functionRegexCppHeader;
+    }
+
+    while ((match = functionRegexOption.exec(text)) !== null) {
+        // const className = match[1];
+        const functionName = match[2];
+        const startPos = document.positionAt(match.index);
+        const endPos = document.positionAt(match.index + match[0].length);
+        const range = new Range(startPos, endPos);
+
+        const functionSymbol = new DocumentSymbol(
+            functionName,
+            '',
+            SymbolKind.Function,
+            range,
+            range
+        );
+        symbols.push(functionSymbol);
+    }
+
+    // // Parse const variables
+    // while ((match = constantRegex.exec(text)) !== null) {
+    //     const constantName = match[1];
+    //     const startPos = document.positionAt(match.index);
+    //     const endPos = document.positionAt(match.index + match[0].length);
+    //     const range = new Range(startPos, endPos);
+
+    //     const constantSymbol = new DocumentSymbol(
+    //         constantName,
+    //         '',
+    //         SymbolKind.Constant,
+    //         range,
+    //         range
+    //     );
+    //     symbols.push(constantSymbol);
+    // }
+
+    // Parse #define macros
+    while ((match = macroRegex.exec(text)) !== null) {
+        const macroName = match[1];
+        const startPos = document.positionAt(match.index);
+        const endPos = document.positionAt(match.index + match[0].length);
+        const range = new Range(startPos, endPos);
+
+        const macroSymbol = new DocumentSymbol(
+            macroName,
+            '',
+            SymbolKind.Constant,  // Use constant for macros
+            range,
+            range
+        );
+        symbols.push(macroSymbol);
+    }
+
+    return symbols;
 }
 
 class SymbolEntry implements QuickPickItem {
@@ -117,6 +207,15 @@ export class GoToClunctionProvider {
     }
 
     private async getSymbols(document: TextDocument): Promise<DocumentSymbol[]> {
+        const fileName = document.fileName;
+        const extension = fileName.split('.').pop()?.toLowerCase();
+
+        // special handling for C++ files because `vscode.executeDocumentSymbolProvider` is ruuuul slow
+        if (extension === 'cpp' || extension === 'h') {
+            // Use manual string parsing for C++ files
+            return await parseCppSymbols(document, extension);
+        }
+
         const result = await commands.executeCommand<DocumentSymbol[]>(
             'vscode.executeDocumentSymbolProvider',
             document.uri
