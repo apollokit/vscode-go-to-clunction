@@ -68,6 +68,9 @@ class SymbolEntry implements QuickPickItem {
             case SymbolKind.Class:
                 icon = '$(symbol-class)';
                 break;
+            case SymbolKind.Constant:
+                icon = '$(symbol-constant)';
+                break;
             default:
                 icon = '$(symbol-method)';
         }
@@ -186,6 +189,7 @@ export class GoToClunctionProvider {
                         symbol.kind === SymbolKind.Method ||
                         symbol.kind === SymbolKind.Function ||
                         symbol.kind === SymbolKind.Class ||
+                        symbol.kind === SymbolKind.Constant ||
                         symbol.kind === SymbolKind.Constructor); 
                     for (const sym of symbols_filt) {
                         if (keep_symbol(sym, activeTextEditor.document)) {
