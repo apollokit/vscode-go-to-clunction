@@ -6,10 +6,28 @@ This is adapted from the [original by trinxnz](https://marketplace.visualstudio.
 ![Usage](images/clunction_junction_whats_ur_function.gif)
 
 ## Installing
+
+### In VSCode from extensions marketplace
+
 * Go to the extensions menu in vscode and search for "go to clunction"
 * Install it
 
 Alternatively, you can download the extension from the [marketplace](https://marketplace.visualstudio.com/items?itemName=KitKennedy.go-to-clunction).
+
+### Building and installing it yourself
+
+```
+# from the repo base
+sudo npm install -g vsce
+npm install
+vsce package
+```
+
+This should pop out a go-to-clunction-1.0.X.vsix file
+
+Then you can install from command line with `code --install-extension go-to-clunction-1.0.X.vsix`
+
+Or in VSCode, Press Control+Shift+X to navigate to extensions manager. Then click on the actions menu, and select Install from vsix.
 
 ## Usage
 * Open the `Commands Palette` (Ctrl+Shift+P) and select `Go to Clunction in File...`

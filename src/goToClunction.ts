@@ -23,6 +23,8 @@ const functionRegexCpp = /\b(\w+)::(~?\w+)\s*\([^)]*\)\s*{/g;
 // const constantRegex = /\bconst\s+[\w\s\*&]+(\w+)\s*=\s*[^;]+;/g;  // Matches const variable definitions
 const macroRegex = /#define\s+(\w+)\s+[^;]+/g;  // Matches #define macros
 
+const functionRegexJsx = /([\t ]*)(function |async |)(\w+)\([^)]*\)\s*\{/g;
+
 const markCommentRegex = /(.*\bMARK\b:?\s?.*)\n/g;  // Matches class or struct declarations
 
 /* Returns true if a symbol should be kept in the symbol list, or false if it should be discarded
@@ -146,6 +148,59 @@ async function parseCppSymbols(document: TextDocument, documentType: string): Pr
     return symbols;
 }
 
+/*  Function to parse jsx files manually
+
+    This function uses regular expressions to parse the document text and extract symbols.
+*/
+async function parseJsxSymbols(document: TextDocument, documentType: string): Promise<DocumentSymbol[]> {
+    const text = document.getText();  // Get the entire document text
+
+    const symbols: DocumentSymbol[] = [];
+
+    // Parse classes and structs
+    let match;
+    while ((match = classRegex.exec(text)) !== null) {
+        const className = match[2];
+        const startPos = document.positionAt(match.index);
+        const endPos = document.positionAt(match.index + match[0].length);
+        const range = new Range(startPos, endPos);
+
+        const classSymbol = new DocumentSymbol(
+            className,
+            '',
+            SymbolKind.Class,
+            range,
+            range
+        );
+        symbols.push(classSymbol);
+    }
+
+    // Parse functions
+    let functionRegexOption = functionRegexJsx;
+    if (documentType === 'h') {
+        functionRegexOption = functionRegexCppHeader;
+    }
+
+    while ((match = functionRegexOption.exec(text)) !== null) {
+        const leadingSpace = match[1];
+        const functionName = match[3];
+        const startPos = document.positionAt(match.index);
+        const endPos = document.positionAt(match.index + match[0].length);
+        const range = new Range(startPos, endPos);
+
+        const functionSymbol = new DocumentSymbol(
+            functionName,
+            leadingSpace, // hijack the symbol.detail to store any desired preceeding text
+            SymbolKind.Function,
+            range,
+            range
+        );
+        symbols.push(functionSymbol);
+    }
+
+    return symbols;
+}
+
 /*  Function to parse "MARK" comments
 
     This function uses regular expressions to parse the document text and extract symbols.
@@ -189,6 +244,10 @@ class SymbolEntry implements QuickPickItem {
         // if the symbol is nested, add some indentation
         let preceed = "";
         if (parentSymbol) {preceed = "     ";}
+        
+        // hijack the symbol.detail to store any desired preceeding text
+        if (symbol.detail) {preceed = symbol.detail;}
+
 
         // choose the icon based on the symbol kind
         let icon = '$(symbol-method)';
@@ -257,6 +316,11 @@ export class GoToClunctionProvider {
         if (extension === 'cpp' || extension === 'h') {
             // Use manual string parsing for C++ files
             symbols.push(...await parseCppSymbols(document, extension));
+        }
+        // special handling for jsx files because vscode doesn't provide symbols for jsx files
+        else if (extension === 'jsx') {
+            // Use manual string parsing for C++ files
+            symbols.push(...await parseJsxSymbols(document, extension));
         }
         else if (extension === 'py') {
             const result = await commands.executeCommand<DocumentSymbol[]>(
